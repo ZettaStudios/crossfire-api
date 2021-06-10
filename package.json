@@ -1,0 +1,24 @@
+{
+  "name": "crossfire-api",
+  "version": "1.0.0",
+  "description": "An little Rest API to the crossfire server.",
+  "main": "server.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "cls && nodemon ."
+  },
+  "keywords": [
+    "rest-api",
+    "crossfire"
+  ],
+  "author": "Diego Santos de Araújo",
+  "license": "ISC",
+  "dependencies": {
+    "axios": "^0.21.1",
+    "express": "^4.17.1",
+    "morgan": "^1.10.0"
+  },
+  "devDependencies": {
+    "nodemon": "^2.0.7"
+  }
+}
