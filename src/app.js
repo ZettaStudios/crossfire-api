@@ -1,7 +1,7 @@
 const express = require('express');
 const app = express();
 const morgan = require('morgan');
-const { getAllServers, getAllServersForUser } = require('./controller/servercontroller')
+const { getAllServers, getAllServersForUser, getServer } = require('./controller/servercontroller')
 const { getUser } = require('./controller/usercontroller')
 
 app.use(morgan('dev'));
@@ -23,9 +23,10 @@ app.use((req, res, next) => {
     next();
 });
 
+app.get('/server/unique/:id', getServer)
 app.get('/server/all/', getAllServers);
 app.get('/server/all/:id', getAllServersForUser);
-app.get('/user/:login', getUser);
+app.get('/user/:username', getUser);
 
 app.use((req, res, next) => {
     const error = new Error('Not found');

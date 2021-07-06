@@ -57,6 +57,14 @@ var serverList = [
 ];
 
 module.exports = {
+    getServer: (req, res) => {
+        const { id } = req.params;
+        const server = serverList[id];
+        res.send({
+            "status": server ? 302 : 404,
+            "data": server ? server : {}
+        })
+    },
     getAllServersForUser: (req, res) => {
         console.log(req.params);
         res.send({
