@@ -1,8 +1,6 @@
 const User = require('../model/User');
 
 module.exports = {
-    async store(req, res) {
-    },
     async getUser (req, res) {
         const { username } = req.params;
         const user = await User.findAll({

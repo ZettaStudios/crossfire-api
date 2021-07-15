@@ -1,8 +1,10 @@
 const express = require('express');
 const app = express();
 const morgan = require('morgan');
+const database = require('./database/database');
 const { getAllServers, getAllServersForUser, getServer } = require('./controller/servercontroller')
 const { getUser } = require('./controller/usercontroller')
+const { getAllBattle, getBattleStatistics } = require('./controller/battlecontroller')
 
 app.use(morgan('dev'));
 
@@ -27,6 +29,8 @@ app.get('/server/unique/:id', getServer)
 app.get('/server/all/', getAllServers);
 app.get('/server/all/:id', getAllServersForUser);
 app.get('/user/:username', getUser);
+app.get('/battle/all/:id', getAllBattle)
+app.get('/battle/statistics/:id', getBattleStatistics)
 
 app.use((req, res, next) => {
     const error = new Error('Not found');

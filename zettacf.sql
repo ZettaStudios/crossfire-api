@@ -1,261 +1,194 @@
--- phpMyAdmin SQL Dump
--- version 5.1.0
--- https://www.phpmyadmin.net/
---
--- Host: 127.0.0.1
--- Tempo de geração: 18-Jun-2021 às 15:46
--- Versão do servidor: 10.4.19-MariaDB
--- versão do PHP: 7.2.33
+CREATE SCHEMA IF NOT EXISTS `zettacf` DEFAULT CHARACTER SET utf8 ;
+USE `zettacf` ;
 
-SET SQL_MODE = "NO_AUTO_VALUE_ON_ZERO";
-START TRANSACTION;
-SET time_zone = "+00:00";
+-- -----------------------------------------------------
+-- Table `zettacf`.`user`
+-- -----------------------------------------------------
+CREATE TABLE IF NOT EXISTS `zettacf`.`users` (
+  `id` INT NOT NULL AUTO_INCREMENT,
+  `username` VARCHAR(13) NOT NULL,
+  `password` TEXT NOT NULL,
+  `email` VARCHAR(45) NOT NULL,
+  `type` INT NULL DEFAULT 0,
+  `name` VARCHAR(16) NOT NULL,
+  `exp` INT NULL DEFAULT 0,
+  `level` INT NULL DEFAULT 0,
+  `gp` INT NULL DEFAULT 1000000,
+  `zp` INT NULL DEFAULT 1000000,
+  `tutorial_done` INT NULL DEFAULT 0,
+  `coupons_owned` INT NULL DEFAULT 0,
+  `lastip` TEXT NULL,
+  `lastguid` TEXT NULL,
+  `kills` INT NULL DEFAULT 0,
+  `deaths` INT NULL DEFAULT 0,
+  PRIMARY KEY (`id`))
+ENGINE = InnoDB;
 
 
-/*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
-/*!40101 SET @OLD_CHARACTER_SET_RESULTS=@@CHARACTER_SET_RESULTS */;
-/*!40101 SET @OLD_COLLATION_CONNECTION=@@COLLATION_CONNECTION */;
-/*!40101 SET NAMES utf8mb4 */;
+-- -----------------------------------------------------
+-- Table `zettacf`.`server`
+-- -----------------------------------------------------
+CREATE TABLE IF NOT EXISTS `zettacf`.`servers` (
+  `id` INT NOT NULL AUTO_INCREMENT,
+  `name` VARCHAR(16) NOT NULL,
+  `type` INT NOT NULL,
+  `address` TEXT NOT NULL,
+  `port` INT NOT NULL,
+  `limit` INT NULL DEFAULT 300,
+  `nolimit` INT NULL DEFAULT 1,
+  `minrank` INT NULL DEFAULT 0,
+  `maxrank` INT NULL DEFAULT 100,
+  `players` INT NULL DEFAULT 0,
+  PRIMARY KEY (`id`))
+ENGINE = InnoDB;
 
---
--- Banco de dados: `zettacf`
---
+-- -----------------------------------------------------
+-- Table `zettacf`.`battle`
+-- -----------------------------------------------------
+CREATE TABLE IF NOT EXISTS `zettacf`.`battles` (
+  `id` INT NOT NULL AUTO_INCREMENT,
+  `gamemode` INT NOT NULL,
+  `map` SMALLINT(6) NOT NULL,
+  `won` INT NOT NULL,
+  `assists` INT NOT NULL,
+  `desertion` INT NOT NULL,
+  `granade` INT NOT NULL,
+  `headshot` INT NOT NULL,
+  `knife` INT NOT NULL,
+  `totaldeaths` INT NOT NULL,
+  `totalkills` INT NOT NULL,
+  `user_id` INT NOT NULL,
+  PRIMARY KEY (`id`, `user_id`),
+  INDEX `fk_battle_user_idx` (`user_id` ASC),
+  CONSTRAINT `fk_battle_user`
+    FOREIGN KEY (`user_id`)
+    REFERENCES `zettacf`.`users` (`id`)
+    ON DELETE CASCADE
+    ON UPDATE CASCADE)
+ENGINE = InnoDB;
 
-DELIMITER $$
---
--- Procedimentos
---
-CREATE DEFINER=`root`@`localhost` PROCEDURE `CheckNameExists` (IN `name` VARCHAR(13))  begin
+-- -----------------------------------------------------
+-- Table `zettacf`.`inventory`
+-- -----------------------------------------------------
+create table `zettacf`.`inventories`
+(
+	user_id int not null,
+	id int not null,
+	type VARCHAR(1) not null,
+	code VARCHAR(5) not null,
+	obtained_at datetime default current_date not null,
+	expire_at datetime not null,
+	current_gauge int not null,
+	max_gauge int not null,
+	progress_gauge int not null,
+	constraint inventory_pk
+		primary key (id)
+);
+
+alter table inventories
+	add constraint inventory_user_id_fk
+		foreign key (user_id) references users (id)
+			on update cascade on delete cascade;
+
+-- -----------------------------------------------------
+-- Table `zettacf`.`character`
+-- -----------------------------------------------------
+create table `characters`
+(
+	id int not null,
+	sh_part int not null,
+	tf_part int not null,
+	sf_part int not null,
+	ss_part int not null,
+	sb_part int not null,
+	stl_part int not null,
+	sw_part int not null,
+	user_id int not null,
+	constraint character_pk
+		primary key (id),
+	constraint character_user_id_fk
+		foreign key (user_id) references users (id)
+			on update cascade on delete cascade
+);
+
+-- -----------------------------------------------------
+-- Alter Table `zettacf`.`users`
+-- -----------------------------------------------------
+alter table users
+    add assists int default 0 not null,
+	add battles int default 0 not null,
+    add desertion int default 0 not null;
+
+create trigger BattleAfterInsert
+    after insert
+    on battles
+    for each row
+begin
+    if NEW.desertion > 0
+    THEN
+        UPDATE users SET users.desertion = users.desertion + 1 WHERE id = NEW.user_id;
+    end if;
+    UPDATE users SET kills = kills + NEW.totalkills, deaths = deaths + NEW.totaldeaths, battles = battles+1, assists = assists + NEW.assists  WHERE id = NEW.user_id;
+end;
+
+create trigger BattleAfterUpdate
+    after update
+    on battles
+    for each row
+begin
+    if NEW.desertion > 0
+    THEN
+        UPDATE users SET users.desertion = users.desertion + 1 WHERE id = NEW.user_id;
+    ELSEIF NEW.desertion < OLD.desertion
+    THEN
+        UPDATE users SET users.desertion = users.desertion - 1 WHERE id = NEW.user_id;
+    end if;
+    UPDATE users SET kills = (kills - OLD.totalkills) + NEW.totalkills, deaths = (deaths - OLD.totaldeaths) + NEW.totaldeaths, assists = (assists - OLD.assists) + NEW.assists WHERE id = NEW.user_id;
+end;
+
+create trigger UserAfterInsert
+    after insert
+    on users
+    for each row
+begin
+    INSERT INTO inventories (user_id, id, type, code, expire_at, current_gauge, max_gauge, progress_gauge) values (NEW.id, '1', 'w', 'C0001', '3000-12-31 23:59:00', '0', '200', '0');
+end;
+
+DELIMITER //
+create procedure CheckNameExists(IN name VARCHAR(13))
+begin
     DECLARE total int;
     SELECT COUNT(*) INTO total FROM users WHERE LOWER(users.name) = LOWER(name);
-    SELECT total > 0;
-end$$
-
+    SELECT total > 0 as RESULT;
+end;
 DELIMITER ;
 
--- --------------------------------------------------------
+DELIMITER //
+create procedure BattleStatistics(IN user_id INT)
+begin
+    DECLARE wins, loses, kills, deaths, assists, headshots, desertion int;
+    SELECT COUNT(*) INTO wins FROM battles WHERE battles.user_id = user_id AND battles.won > 0;
+    SELECT COUNT(*) INTO loses FROM battles WHERE battles.user_id = user_id AND battles.won < 1;
+    SELECT SUM(battles.totalkills) INTO kills FROM battles WHERE battles.user_id = user_id;
+    SELECT SUM(battles.totaldeaths) INTO deaths FROM battles WHERE battles.user_id = user_id;
+    SELECT SUM(battles.assists) INTO assists FROM battles WHERE battles.user_id = user_id;
+    SELECT SUM(battles.headshot) INTO headshots FROM battles WHERE battles.user_id = user_id;
+    SELECT SUM(battles.desertion) INTO desertion FROM battles WHERE battles.user_id = user_id;
 
---
--- Estrutura da tabela `battles`
---
-
-CREATE TABLE `battles` (
-  `id` int(11) NOT NULL,
-  `gamemode` int(11) NOT NULL,
-  `map` smallint(6) NOT NULL,
-  `won` int(11) NOT NULL,
-  `assists` int(11) NOT NULL,
-  `desertion` int(11) NOT NULL,
-  `granade` int(11) NOT NULL,
-  `headshot` int(11) NOT NULL,
-  `knife` int(11) NOT NULL,
-  `totaldeaths` int(11) NOT NULL,
-  `totalkills` int(11) NOT NULL,
-  `user_id` int(11) NOT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-
---
--- Acionadores `battles`
---
-DELIMITER $$
-CREATE TRIGGER `BattleAfterInsert` AFTER INSERT ON `battles` FOR EACH ROW begin
-    UPDATE users SET kills = kills + NEW.totalkills, deaths = deaths + NEW.totaldeaths WHERE id = NEW.user_id;
-end
-$$
-DELIMITER ;
-DELIMITER $$
-CREATE TRIGGER `BattleAfterUpdate` AFTER UPDATE ON `battles` FOR EACH ROW begin
-    UPDATE users SET kills = (kills - OLD.totalkills) + NEW.totalkills, deaths = (deaths - OLD.totaldeaths) + NEW.totaldeaths WHERE id = NEW.user_id;
-end
-$$
+    # SEND RESULT
+    SELECT wins, loses, kills, deaths, assists, headshots, desertion;
+end;
 DELIMITER ;
 
--- --------------------------------------------------------
+insert into users (id, username, password, email, type, name, exp, level, gp, zp, tutorial_done, coupons_owned, lastip,
+                  lastguid, kills, deaths)
+values (52142, 'oreki', '$2y$12$.eCm/D/7Ba2OaDVTPjcFfuinAvy4QVj1y0TmBwR3wzbNY4QcnNX2q', 'diego@zettastudios.to', 0, '[GM]Alchemist', 813, 1, 500000, 100000, 1, 10, '127.0.0.1', '', 0, 0);
 
---
--- Estrutura da tabela `characters`
---
+insert into battles (gamemode, map, won, assists, desertion, granade, headshot, knife, totaldeaths, totalkills, user_id)
+values (1, 1, 1, 2, 0, 1, 12, 0, 3, 16, 52142);
 
-CREATE TABLE `characters` (
-  `id` int(11) NOT NULL,
-  `sh_part` int(11) NOT NULL,
-  `tf_part` int(11) NOT NULL,
-  `sf_part` int(11) NOT NULL,
-  `ss_part` int(11) NOT NULL,
-  `sb_part` int(11) NOT NULL,
-  `stl_part` int(11) NOT NULL,
-  `sw_part` int(11) NOT NULL,
-  `user_id` int(11) NOT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+insert into battles (gamemode, map, won, assists, desertion, granade, headshot, knife, totaldeaths, totalkills, user_id)
+values (1, 1, 0, 0, 1, 1, 1, 0, 3, 4, 52142);
 
--- --------------------------------------------------------
-
---
--- Estrutura da tabela `inventories`
---
-
-CREATE TABLE `inventories` (
-  `user_id` int(11) NOT NULL,
-  `id` int(11) NOT NULL,
-  `type` varchar(1) NOT NULL,
-  `code` varchar(5) NOT NULL,
-  `obtained_at` datetime NOT NULL DEFAULT curdate(),
-  `expire_at` datetime NOT NULL,
-  `current_gauge` int(11) NOT NULL,
-  `max_gauge` int(11) NOT NULL,
-  `progress_gauge` int(11) NOT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-
---
--- Extraindo dados da tabela `inventories`
---
-
-INSERT INTO `inventories` (`user_id`, `id`, `type`, `code`, `obtained_at`, `expire_at`, `current_gauge`, `max_gauge`, `progress_gauge`) VALUES
-(52142, 1, 'w', 'C0001', '2021-06-14 00:00:00', '3000-12-31 23:59:00', 0, 200, 0);
-
--- --------------------------------------------------------
-
---
--- Estrutura da tabela `servers`
---
-
-CREATE TABLE `servers` (
-  `id` int(11) NOT NULL,
-  `name` varchar(16) NOT NULL,
-  `type` int(11) NOT NULL,
-  `address` text NOT NULL,
-  `port` int(11) NOT NULL,
-  `limit` int(11) DEFAULT 300,
-  `nolimit` int(11) DEFAULT 1,
-  `minrank` int(11) DEFAULT 0,
-  `maxrank` int(11) DEFAULT 100,
-  `players` int(11) DEFAULT 0
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-
--- --------------------------------------------------------
-
---
--- Estrutura da tabela `users`
---
-
-CREATE TABLE `users` (
-  `id` int(11) NOT NULL,
-  `username` varchar(13) NOT NULL,
-  `password` text NOT NULL,
-  `email` varchar(45) NOT NULL,
-  `type` int(11) DEFAULT 0,
-  `name` varchar(16) NOT NULL,
-  `exp` int(11) DEFAULT 0,
-  `level` int(11) DEFAULT 0,
-  `gp` int(11) DEFAULT 1000000,
-  `zp` int(11) DEFAULT 1000000,
-  `tutorial_done` int(11) DEFAULT 0,
-  `coupons_owned` int(11) DEFAULT 0,
-  `lastip` text DEFAULT NULL,
-  `lastguid` text DEFAULT NULL,
-  `kills` int(11) DEFAULT 0,
-  `deaths` int(11) DEFAULT 0
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-
---
--- Extraindo dados da tabela `users`
---
-
-INSERT INTO `users` (`id`, `username`, `password`, `email`, `type`, `name`, `exp`, `level`, `gp`, `zp`, `tutorial_done`, `coupons_owned`, `lastip`, `lastguid`, `kills`, `deaths`) VALUES
-(52142, 'oreki', '$2y$12$.eCm/D/7Ba2OaDVTPjcFfuinAvy4QVj1y0TmBwR3wzbNY4QcnNX2q', 'diego@zettastudios.to', 0, 'Gotrax', 512, 2, 500000, 100000, 1, 10, '127.0.0.1', '', 0, 0);
-
---
--- Acionadores `users`
---
-DELIMITER $$
-CREATE TRIGGER `UserAfterInsert` AFTER INSERT ON `users` FOR EACH ROW begin
-    INSERT INTO inventories (user_id, id, type, code, expire_at, current_gauge, max_gauge, progress_gauge) values (NEW.id, '1', 'w', 'C0001', '3000-12-31 23:59:00', '0', '200', '0');
-end
-$$
-DELIMITER ;
-
---
--- Índices para tabelas despejadas
---
-
---
--- Índices para tabela `battles`
---
-ALTER TABLE `battles`
-  ADD PRIMARY KEY (`id`,`user_id`),
-  ADD KEY `fk_battle_user_idx` (`user_id`);
-
---
--- Índices para tabela `characters`
---
-ALTER TABLE `characters`
-  ADD PRIMARY KEY (`id`),
-  ADD KEY `character_user_id_fk` (`user_id`);
-
---
--- Índices para tabela `inventories`
---
-ALTER TABLE `inventories`
-  ADD PRIMARY KEY (`id`),
-  ADD KEY `inventory_user_id_fk` (`user_id`);
-
---
--- Índices para tabela `servers`
---
-ALTER TABLE `servers`
-  ADD PRIMARY KEY (`id`);
-
---
--- Índices para tabela `users`
---
-ALTER TABLE `users`
-  ADD PRIMARY KEY (`id`);
-
---
--- AUTO_INCREMENT de tabelas despejadas
---
-
---
--- AUTO_INCREMENT de tabela `battles`
---
-ALTER TABLE `battles`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
-
---
--- AUTO_INCREMENT de tabela `servers`
---
-ALTER TABLE `servers`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
-
---
--- AUTO_INCREMENT de tabela `users`
---
-ALTER TABLE `users`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=52143;
-
---
--- Restrições para despejos de tabelas
---
-
---
--- Limitadores para a tabela `battles`
---
-ALTER TABLE `battles`
-  ADD CONSTRAINT `fk_battle_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE ON UPDATE CASCADE;
-
---
--- Limitadores para a tabela `characters`
---
-ALTER TABLE `characters`
-  ADD CONSTRAINT `character_user_id_fk` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE ON UPDATE CASCADE;
-
---
--- Limitadores para a tabela `inventories`
---
-ALTER TABLE `inventories`
-  ADD CONSTRAINT `inventory_user_id_fk` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE ON UPDATE CASCADE;
-COMMIT;
-
-/*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;
-/*!40101 SET CHARACTER_SET_RESULTS=@OLD_CHARACTER_SET_RESULTS */;
-/*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
+CALL CheckNameExists('[GM]Alchemist');
+CALL BattleStatistics(52142);

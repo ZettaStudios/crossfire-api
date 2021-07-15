@@ -14,8 +14,11 @@ class User extends Model {
             coupons_owned: DataTypes.INTEGER,
             lastip: DataTypes.STRING,
             lastguid: DataTypes.STRING,
+            assists: DataTypes.INTEGER,
             kills: DataTypes.INTEGER,
             deaths: DataTypes.INTEGER,
+            battles: DataTypes.INTEGER,
+            desertion: DataTypes.INTEGER
         }, {
             sequelize: connection
         })
