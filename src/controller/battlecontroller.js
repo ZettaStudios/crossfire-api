@@ -28,8 +28,8 @@ module.exports = {
             data = JSON.parse(JSON.stringify(v[0]));
         });
         res.send({
-            'status': Object.keys(data).length > 0 ? 302 : 404,
-            'data': Object.keys(data).length > 0 ? data : {}
+            'status': Object.keys(data).desertion === null ? 302 : 404,
+            'data': Object.keys(data).desertion === null ? data : {}
         });
     }
 }

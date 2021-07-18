@@ -73,7 +73,7 @@ ENGINE = InnoDB;
 create table `zettacf`.`inventories`
 (
 	user_id int not null,
-	id int not null,
+	id int not null AUTO_INCREMENT,
 	type VARCHAR(1) not null,
 	code VARCHAR(5) not null,
 	obtained_at datetime default current_date not null,
@@ -127,8 +127,11 @@ begin
     if NEW.desertion > 0
     THEN
         UPDATE users SET users.desertion = users.desertion + 1 WHERE id = NEW.user_id;
+        UPDATE users SET battles = battles+1 WHERE id = NEW.user_id;
+    ELSEIF NEW.desertion < 1
+    THEN
+        UPDATE users SET kills = kills + NEW.totalkills, deaths = deaths + NEW.totaldeaths, battles = battles+1, assists = assists + NEW.assists  WHERE id = NEW.user_id;
     end if;
-    UPDATE users SET kills = kills + NEW.totalkills, deaths = deaths + NEW.totaldeaths, battles = battles+1, assists = assists + NEW.assists  WHERE id = NEW.user_id;
 end;
 
 create trigger BattleAfterUpdate
@@ -151,22 +154,23 @@ create trigger UserAfterInsert
     on users
     for each row
 begin
-    INSERT INTO inventories (user_id, id, type, code, expire_at, current_gauge, max_gauge, progress_gauge) values (NEW.id, '1', 'w', 'C0001', '3000-12-31 23:59:00', '0', '200', '0');
+    INSERT INTO inventories (user_id, type, code, expire_at, current_gauge, max_gauge, progress_gauge) values (NEW.id, 'w', 'C0001', '3000-12-31 23:59:00', '0', '200', '0');
 end;
+
 
 DELIMITER //
 create procedure CheckNameExists(IN name VARCHAR(13))
 begin
     DECLARE total int;
     SELECT COUNT(*) INTO total FROM users WHERE LOWER(users.name) = LOWER(name);
-    SELECT total > 0 as RESULT;
+    SELECT total > 0 as result;
 end;
 DELIMITER ;
 
 DELIMITER //
 create procedure BattleStatistics(IN user_id INT)
 begin
-    DECLARE wins, loses, kills, deaths, assists, headshots, desertion int;
+    DECLARE wins, loses, kills, deaths, assists, headshots, granade, knife, desertion int;
     SELECT COUNT(*) INTO wins FROM battles WHERE battles.user_id = user_id AND battles.won > 0;
     SELECT COUNT(*) INTO loses FROM battles WHERE battles.user_id = user_id AND battles.won < 1;
     SELECT SUM(battles.totalkills) INTO kills FROM battles WHERE battles.user_id = user_id;
@@ -174,21 +178,26 @@ begin
     SELECT SUM(battles.assists) INTO assists FROM battles WHERE battles.user_id = user_id;
     SELECT SUM(battles.headshot) INTO headshots FROM battles WHERE battles.user_id = user_id;
     SELECT SUM(battles.desertion) INTO desertion FROM battles WHERE battles.user_id = user_id;
+    SELECT SUM(battles.granade) INTO granade FROM battles WHERE battles.user_id = user_id;
+    SELECT SUM(battles.knife) INTO knife FROM battles WHERE battles.user_id = user_id;
 
     # SEND RESULT
-    SELECT wins, loses, kills, deaths, assists, headshots, desertion;
+    SELECT wins, loses, desertion, kills, deaths, assists, headshots, granade, knife;
 end;
 DELIMITER ;
 
+# password: oreki
 insert into users (id, username, password, email, type, name, exp, level, gp, zp, tutorial_done, coupons_owned, lastip,
                   lastguid, kills, deaths)
 values (52142, 'oreki', '$2y$12$.eCm/D/7Ba2OaDVTPjcFfuinAvy4QVj1y0TmBwR3wzbNY4QcnNX2q', 'diego@zettastudios.to', 0, '[GM]Alchemist', 813, 1, 500000, 100000, 1, 10, '127.0.0.1', '', 0, 0);
+
+# password: admin
+insert into users (id, username, password, email, type, name, exp, level, gp, zp, tutorial_done, coupons_owned, lastip,
+                  lastguid, kills, deaths)
+values (52143, 'admin', '$2y$12$tO5CoOfSvQ9yoqANvMxxnOE2JpaJ/a9uX2RKP0Uvk5KUmlTc4janW', 'admin@zettastudios.to', 0, '', 0, 0, 500000, 100000, 1, 10, '127.0.0.1', '', 0, 0);
 
 insert into battles (gamemode, map, won, assists, desertion, granade, headshot, knife, totaldeaths, totalkills, user_id)
 values (1, 1, 1, 2, 0, 1, 12, 0, 3, 16, 52142);
 
 insert into battles (gamemode, map, won, assists, desertion, granade, headshot, knife, totaldeaths, totalkills, user_id)
 values (1, 1, 0, 0, 1, 1, 1, 0, 3, 4, 52142);
-
-CALL CheckNameExists('[GM]Alchemist');
-CALL BattleStatistics(52142);

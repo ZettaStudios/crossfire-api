@@ -12,7 +12,6 @@ class Battle extends Model {
             knife: DataTypes.INTEGER,
             totaldeaths: DataTypes.INTEGER,
             totalkills: DataTypes.INTEGER
-
         }, {
             sequelize: connection
         })
