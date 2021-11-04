@@ -45,5 +45,15 @@ module.exports = {
             'status': user.length > 0 ? 302 : 404,
             'data': user.length > 0 ? user[0] : {}
         });
+    },
+    async getFeverOf(req, res) {
+        // const { id } = req.params;
+        res.send({
+            percent: 15,
+            progress: 1,
+            activated: true,
+            duration: 0,
+            activatedAt: new Date().toJSON(),
+        });
     }
 }
